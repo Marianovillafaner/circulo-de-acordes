@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Herramienta para aprender armonía con armónica: círculo de acordes, tablatura, pentatónica, ritmo y blues de 12 compases.">
+<title>Círculo de acordes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: rueda a la izquierda, ficha del acorde a la derecha; en teléfono se apilan */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --ink:#141C26; --muted:#5A6676; --line:#D3DAE3;
+  --major:#2148C9; --major-soft:#DDE5FA; --major-ink:#13307F;
+  --minor:#0B7F70; --minor-soft:#D6F0EB; --minor-ink:#07574D;
+  --key-white:#FFFFFF; --key-black:#1A222C;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --surface:#161E28; --ink:#E6EBF1; --muted:#95A2B1; --line:#2A3542;
+  --major:#86A6FF; --major-soft:#1C2A52; --major-ink:#C9D6FF;
+  --minor:#52D3BE; --minor-soft:#103A33; --minor-ink:#B5F0E5;
+  --key-white:#E9EDF2; --key-black:#0A0E13; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --surface:#161E28; --ink:#E6EBF1; --muted:#95A2B1; --line:#2A3542;
+  --major:#86A6FF; --major-soft:#1C2A52; --major-ink:#C9D6FF;
+  --minor:#52D3BE; --minor-soft:#103A33; --minor-ink:#B5F0E5;
+  --key-white:#E9EDF2; --key-black:#0A0E13; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,4.5vw,40px);line-height:1.05;margin:0;letter-spacing:-0.01em;text-wrap:balance}
+.lede{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.wheel-box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:12px}
+#wheel{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
+.seg-path{cursor:pointer;stroke:var(--surface);stroke-width:2;transition:fill .15s}
+.seg-path.M{fill:var(--bg)} .seg-path.m{fill:var(--bg)}
+.seg-path.M.fam{fill:var(--major-soft)} .seg-path.m.fam{fill:var(--minor-soft)}
+.seg-path.M.sel,.seg-path.M.play{fill:var(--major)} .seg-path.m.sel,.seg-path.m.play{fill:var(--minor)}
+.seg-path:focus-visible{outline:none;stroke:var(--ink);stroke-width:3}
+.ring-bg{fill:none;stroke:var(--line);stroke-width:1}
+.lbl{font-family:var(--display);font-weight:700;pointer-events:none;text-anchor:middle;dominant-baseline:central}
+.lbl.M{font-size:19px;fill:var(--major-ink)} .lbl.m{font-size:14px;fill:var(--minor-ink)}
+.lbl.on{fill:var(--surface)}
+.alt{font-family:var(--body);font-weight:400;font-size:10px;fill:var(--muted);pointer-events:none;text-anchor:middle;dominant-baseline:central}
+.alt.on{fill:var(--surface)}
+.roman{font-family:var(--mono);font-size:10px;pointer-events:none;text-anchor:middle;dominant-baseline:central;fill:var(--muted)}
+.roman.on{fill:var(--surface)}
+.center-name{font-family:var(--display);font-weight:700;font-size:26px;fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.center-sub{font-family:var(--body);font-size:12px;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted);padding:8px 8px 4px;justify-content:center}
+.dot{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+.mode-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}
+.mode-row.center{justify-content:center}
+.mode-lbl{font-size:13px;color:var(--muted)}
+.mode-seg button{font-size:13px;padding:5px 12px}
+.panel{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+.chord-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 14px}
+.chord-title h2{font-family:var(--display);font-weight:700;font-size:34px;margin:0;line-height:1.1}
+.chord-title .sym{font-family:var(--mono);font-size:15px;color:var(--muted)}
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+.note{border-radius:14px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:2px;min-width:0}
+.note .role{font-size:12px;color:var(--muted)}
+.note .nm{font-family:var(--display);font-weight:700;font-size:24px}
+.note .num{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.note.root .nm{color:var(--accent)}
+button.note{border:1px solid transparent;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .15s,transform .1s}
+button.note:hover{border-color:var(--line)} button.note:active{transform:scale(.97)}
+button.note:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.wk,.bk{cursor:pointer;transition:opacity .15s} .wk.flash,.bk.flash{opacity:.45}
+.formula{margin-top:14px;font-family:var(--mono);font-size:14px;background:var(--bg);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;line-height:1.5;font-variant-numeric:tabular-nums}
+.formula b{color:var(--accent);font-weight:500}
+.kb-wrap{margin-top:14px;overflow-x:auto}
+#kb,#pkb{width:100%;min-width:300px;height:auto;display:block}
+.wk{fill:var(--key-white);stroke:var(--line)} .bk{fill:var(--key-black)}
+.wk.hit,.bk.hit{fill:var(--accent)}
+.klbl{font-family:var(--mono);font-size:9px;text-anchor:middle;fill:var(--muted)}
+.klbl.hit{fill:var(--surface)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.btn{font:inherit;font-size:15px;border-radius:999px;padding:9px 18px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn:focus-visible,.fam-btn:focus-visible,.seg button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.fam-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.fam-btn{font:inherit;text-align:left;border-radius:12px;padding:10px 12px;cursor:pointer;border:1px solid transparent;display:flex;flex-direction:column;gap:0;min-width:0}
+.fam-btn.M{background:var(--major-soft);color:var(--major-ink)} .fam-btn.m{background:var(--minor-soft);color:var(--minor-ink)}
+.fam-btn.cur{border-color:currentColor}
+.fam-btn .r{font-family:var(--mono);font-size:12px;opacity:.85}
+.fam-btn .n{font-family:var(--display);font-weight:700;font-size:18px}
+.hint{font-size:14px;color:var(--muted);margin:10px 0 0}
+.prog{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:10px}
+.prog span{padding:2px 6px;border-radius:6px}
+.prog span.now{background:var(--accent);color:var(--surface)}
+.fam-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{font-size:13px;padding:5px 12px;border-radius:999px}
+.chip.M{background:var(--major-soft);color:var(--major-ink)} .chip.m{background:var(--minor-soft);color:var(--minor-ink)}
+.chip b{font-weight:700}
+.fam-btn .k{font-size:12px;opacity:.8}
+.prog-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.prog-item{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center}
+.prog-item .pat{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.prog-item .chs{display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1;align-items:center}
+.pc{font-family:var(--display);font-weight:700;font-size:16px;padding:3px 10px;border-radius:8px}
+.pc.M{background:var(--major-soft);color:var(--major-ink)} .pc.m{background:var(--minor-soft);color:var(--minor-ink)}
+.pc.now.M{background:var(--major);color:var(--surface)} .pc.now.m{background:var(--minor);color:var(--surface)}
+.arrow{color:var(--muted);font-size:14px}
+.prog-item .songs{grid-column:1/-1;font-size:14px;color:var(--muted)}
+.prog-item .songs b{color:var(--ink);font-weight:700}
+.btn.sm{padding:6px 14px;font-size:14px}
+.p-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-top:18px}
+@media (max-width:820px){.p-grid{grid-template-columns:minmax(0,1fr)}}
+.step-t{font-weight:700;margin:18px 0 8px;display:flex;align-items:center;gap:10px}
+.p-grid > div > .step-t:first-child{margin-top:0}
+.step-n{width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-family:var(--mono);flex:none}
+.p-scale{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.p-scale div{background:var(--accent-soft);border-radius:10px;padding:8px 4px;text-align:center;min-width:0}
+.p-scale small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.p-scale b{font-family:var(--display);font-size:16px}
+.p-scale div.out{background:var(--bg);opacity:.45;text-decoration:line-through}
+.p-notes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.p-notes .note{padding:10px 8px}
+.p-notes .nm{font-size:19px}
+.recipe{font-family:var(--mono);font-size:13px;line-height:1.9;color:var(--muted);margin:10px 0 0}
+.p-tips{display:flex;flex-direction:column;gap:10px;margin-top:16px;font-size:15px}
+.p-tips p{margin:0;background:var(--bg);border-radius:12px;padding:12px 14px}
+.p-tips b{font-weight:700}
+.p-tips .btn{margin-top:8px}
+.p-prog{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.seg-path.pent{stroke:var(--ink);stroke-width:3;stroke-dasharray:6 4}
+@media (max-width:480px){.p-scale{grid-template-columns:repeat(4,minmax(0,1fr))}.p-notes{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.head-ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.harp-pick{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.harp-pick select{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.sec-h{font-family:var(--display);font-weight:700;font-size:30px;margin:0 0 6px;line-height:1.1;text-wrap:balance}
+.harp-wrap{overflow-x:auto;margin-top:14px}
+.harp{display:grid;grid-template-columns:64px repeat(10,minmax(40px,1fr));gap:4px;min-width:500px}
+.h-num{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.h-lbl{font-size:12px;color:var(--muted);display:flex;align-items:center}
+.h-cell{font-family:var(--display);font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:9px 2px;cursor:pointer;text-align:center;transition:opacity .15s}
+.h-cell.hit{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.h-cell.hit.root{outline:2px solid var(--ink);outline-offset:1px}
+.h-cell.flash{opacity:.45}
+.h-cell small{display:block;font-family:var(--mono);font-size:10px;font-weight:500;opacity:.75;margin-bottom:2px}
+.tab-in{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.tab-in input{flex:1 1 220px;min-width:0;font-family:var(--mono);font-size:16px;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.tab-in input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button.lk{font:inherit;cursor:pointer;color:inherit}
+.key-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 10px}
+.h-cell:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.pos-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pos{background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pos .pn{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.pos b{font-family:var(--display);font-size:20px}
+.pos p{margin:0;font-size:14px;color:var(--muted)}
+.pos .btn{align-self:flex-start;margin-top:6px}
+.concepts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.concepts div{background:var(--bg);border-radius:14px;padding:14px 16px}
+.concepts b{font-family:var(--display);font-size:21px}
+.concepts p{margin:6px 0 0;font-size:15px}
+.ctrl-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 22px;margin-top:6px}
+.ctrl{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);min-width:0}
+.ctrl b{color:var(--ink)}
+.ctrl .seg{flex-wrap:wrap;border-radius:16px;align-self:flex-start}
+.ctrl input[type=range]{width:100%;accent-color:var(--major)}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted);margin-top:12px;cursor:pointer}
+.chk input{accent-color:var(--major);width:16px;height:16px}
+.beats{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-top:14px}
+.beat{background:var(--bg);border-radius:14px;padding:12px 8px;text-align:center;border:2px solid transparent}
+.beat .bn{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;display:block}
+.beat .bs{display:block;font-size:13px;margin-top:6px}
+.beat small{display:block;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.beat.acc{border-color:var(--ink)}
+.beat.now{background:var(--major);color:var(--surface)} .beat.now small{color:var(--surface)}
+.beats.mini{grid-template-columns:repeat(4,minmax(0,1fr))}
+.beats.mini .beat{padding:6px}
+.beats.mini .bn{font-size:18px}
+.b-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.bar{background:var(--bg);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0;border:2px solid transparent}
+.bar small{font-size:11px;color:var(--muted)}
+.bar .rn{font-family:var(--mono);font-size:12px;color:var(--major-ink)}
+.bar b{font-family:var(--display);font-size:22px}
+.bar .hh{font-family:var(--mono);font-size:13px}
+.bar .hs{font-size:11px;color:var(--muted)}
+.bar.IV,.bar.V{background:var(--major-soft)}
+.bar.tail{border-style:dashed;border-color:var(--muted)}
+.bar.now{background:var(--major);border-color:var(--major)} .bar.now *{color:var(--surface)!important}
+.lick{background:var(--bg);border-radius:14px;padding:14px 16px;margin-top:14px}
+.lick .step-t{margin-top:0}
+.lick-row{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-top:10px}
+.lk{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;text-align:center;min-width:60px}
+.lk b{font-family:var(--mono);font-size:18px;display:block;font-weight:500}
+.lk small{display:block;font-size:11px;color:var(--muted)}
+.lk.now{background:var(--major);border-color:var(--major);color:var(--surface)} .lk.now small{color:var(--surface)}
+.song{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.song h3{font-family:var(--display);font-weight:700;font-size:23px;margin:0;line-height:1.15}
+.song p{margin:0;font-size:15px}
+.song .meta{color:var(--muted);font-size:14px}
+.tl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tl span{background:var(--bg);border-radius:8px;padding:4px 10px;font-size:13px}
+.tl span.solo{background:var(--major-soft);color:var(--major-ink)}
+.tl i{font-style:normal;color:var(--muted);font-size:13px}
+.song ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.song .warn{font-weight:700}
+.song a{color:var(--major-ink)}
+.lk-sep{align-self:center;color:var(--muted);font-family:var(--mono);padding:0 4px}
+@media (max-width:820px){.pos-list,.concepts,.ctrl-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.bar{padding:8px 6px}.bar b{font-size:17px}.bar .hh{font-size:11px}.sec-h{font-size:25px}}
+.scale{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;margin-top:12px}
+.scale div{text-align:center;border-radius:8px;padding:6px 0;background:var(--bg);font-size:12px;min-width:0}
+.scale div small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.scale div.hit{background:var(--accent);color:var(--surface)} .scale div.hit small{color:var(--surface)}
+@media (max-width:480px){.scale{grid-template-columns:repeat(6,minmax(0,1fr))}.chord-title h2{font-size:28px}.note .nm{font-size:20px}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Círculo de acordes</h1>
+      <p class="lede">Tocá un acorde en la rueda. Afuera están los mayores y adentro los menores. Cada paso en el sentido del reloj sube una quinta (+7), y los vecinos son los acordes que mejor combinan. Está pensada para la armónica: elegí la tuya acá al lado.</p>
+    </div>
+    <div class="head-ctrls">
+      <label class="harp-pick">Tu armónica en <select id="harp-key"></select></label>
+      <div class="seg" role="group" aria-label="Forma de escribir los acordes">
+        <button id="nm-lat" aria-pressed="true">Do Re Mi</button>
+        <button id="nm-us" aria-pressed="false">C D E</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="wheel-box">
+      <svg id="wheel" viewBox="0 0 420 420" role="img" aria-label="Círculo de quintas con acordes mayores afuera y menores adentro"></svg>
+      <div class="mode-row center"><span class="mode-lbl">Al tocar un acorde, que suene:</span><div class="seg mode-seg" role="group" aria-label="Cómo suena el acorde en la rueda"><button data-mode="junto" aria-pressed="true">Junto</button><button data-mode="arp" aria-pressed="false">Nota por nota</button></div></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--major)"></i>Acorde elegido</span>
+        <span><i class="dot" style="background:var(--major-soft)"></i>Mayores que combinan</span>
+        <span><i class="dot" style="background:var(--minor-soft)"></i>Menores que combinan</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <section class="card" id="chord-card">
+        <p class="eyebrow" id="kind">Acorde mayor</p>
+        <div class="chord-title"><h2 id="cname">Do mayor</h2><span class="sym" id="csym">C</span></div>
+        <div class="notes" id="notes"></div>
+        <div class="formula" id="formula"></div>
+        <div class="kb-wrap"><svg id="kb" viewBox="0 0 420 110" aria-label="Teclado con las notas del acorde"></svg></div>
+        <div class="actions">
+          <button class="btn primary" id="play">▶ Escuchar acorde</button>
+          <button class="btn" id="arp">Nota por nota</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Acordes que combinan</p>
+        <p class="hint" id="fam-hint" style="margin-top:0"></p>
+        <div class="fam-legend" id="fam-legend"></div>
+        <div class="mode-row"><span class="mode-lbl">Al tocar un acorde, que suene:</span><div class="seg mode-seg" role="group" aria-label="Cómo suenan los acordes que combinan"><button data-mode="junto" aria-pressed="true">Junto</button><button data-mode="arp" aria-pressed="false">Nota por nota</button></div></div>
+        <div class="fam-list" id="fam"></div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Progresiones para practicar</p>
+        <p class="hint" style="margin-top:0">Una progresión es una serie de acordes que se tocan en orden, uno después del otro. Las canciones originales pueden estar en otra tonalidad, pero siguen el mismo patrón.</p>
+        <div class="mode-row"><span class="mode-lbl">Cada acorde de la progresión, que suene:</span><div class="seg mode-seg" role="group" aria-label="Cómo suenan las progresiones"><button data-mode="junto" aria-pressed="true">Junto</button><button data-mode="arp" aria-pressed="false">Nota por nota</button></div></div>
+        <div class="prog-list" id="progs"></div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Las 12 notas numeradas</p>
+        <div class="scale" id="scale"></div>
+        <p class="hint" style="font-family:var(--mono);line-height:1.9">Mayor = raíz, 3ª +4, 5ª +7<br>Menor = raíz, 3ª +3, 5ª +7<br>Si pasa de 12, restás 12</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="card" id="harp">
+    <p class="eyebrow">Tu armónica · tablatura</p>
+    <h2 class="sec-h" id="h-name">Armónica en Do</h2>
+    <div class="key-row"><label class="harp-pick" style="font-size:15px">Mi armónica está en <select id="harp-key2"></select></label></div>
+    <p class="hint" style="margin-top:0;max-width:72ch">Una armónica diatónica de 10 agujeros está afinada en una sola tonalidad: la letra que trae grabada (C = Do, G = Sol, A = La…). Cada agujero da una nota soplando y otra aspirando. Tocá cualquier casilla para escucharla.</p>
+    <p class="hint" style="max-width:72ch"><b style="color:var(--ink)">Cómo se lee la tablatura:</b> cada número es un agujero. Número solo = soplar (4). Número con menos = aspirar (−4). Algunas tablaturas escriben +4 o 4↑ para soplar y 4↓ o 4D para aspirar. Un apóstrofo (−3') indica un bend.</p>
+    <div class="mode-row"><span class="mode-lbl">Marcar en la armónica:</span><div class="seg" role="group" id="h-mark"><button data-v="chord" aria-pressed="true">El acorde elegido</button><button data-v="penta" aria-pressed="false">La pentatónica</button></div></div>
+    <div class="harp-wrap"><div class="harp" id="harp-grid"></div></div>
+    <p class="hint" id="h-hint"></p>
+    <p class="step-t">Leé una tablatura</p>
+    <p class="hint" style="margin:0">Escribí la tablatura separada por espacios y fijate qué notas suenan con tu armónica.</p>
+    <div class="tab-in"><input id="tab-input" type="text" value="4 -4 5 -5 6 -6 -7 7" aria-label="Tablatura" autocomplete="off" spellcheck="false"><button class="btn primary" id="tab-play" style="--accent:var(--major)">▶ Tocar</button></div>
+    <div class="mode-row"><span class="mode-lbl">Ejemplos:</span><button class="btn sm tab-ex" data-tab="4 -4 5 -5 6 -6 -7 7">Escala mayor (1ª posición)</button><button class="btn sm tab-ex" data-tab="-4 4 -3 -2 -1">Turnaround</button><button class="btn sm tab-ex" data-tab="-2 -3 4 -4 4 -3 -2">Ending</button></div>
+    <div class="lick-row" id="tab-out"></div>
+    <p class="hint" id="tab-err"></p>
+    <p class="step-t">Posiciones: una armónica, varias tonalidades</p>
+    <div class="pos-list" id="h-pos"></div>
+  </section>
+
+  <section class="card" id="penta">
+    <p class="eyebrow">Escala pentatónica</p>
+    <div class="chord-title"><h2 id="p-name">Pentatónica de Do mayor</h2></div>
+    <p class="hint" style="margin-top:6px;max-width:70ch">Penta = cinco. Es una escala de 5 notas que sale de la escala normal de 7, sacando las 2 notas que pueden chocar. Por eso casi cualquier nota que toques suena bien encima de los acordes que combinan. Es la escala más usada para improvisar en rock, blues y pop. Cambia según el acorde que elijas en la rueda.</p>
+    <div class="p-grid">
+      <div>
+        <p class="step-t"><span class="step-n">1</span>Partís de la escala completa (7 notas)</p>
+        <div class="p-scale" id="p-full"></div>
+        <p class="step-t"><span class="step-n">2</span>Sacás las 2 notas que chocan</p>
+        <p class="hint" id="p-why" style="margin:0"></p>
+        <p class="step-t"><span class="step-n">3</span>Te quedan 5 notas</p>
+        <div class="p-notes" id="p-notes"></div>
+        <div class="formula" id="p-formula"></div>
+        <p class="recipe">Pentatónica mayor = raíz, +2, +4, +7, +9<br>Pentatónica menor = raíz, +3, +5, +7, +10<br>Si pasa de 12, restás 12</p>
+      </div>
+      <div>
+        <div class="kb-wrap" style="margin-top:0"><svg id="pkb" viewBox="0 0 420 110" aria-label="Teclado con las notas de la pentatónica"></svg></div>
+        <div class="actions">
+          <button class="btn primary" id="p-play">▶ Escuchar la escala</button>
+          <button class="btn" id="p-impro">▶ Improvisar encima de acordes</button>
+        </div>
+        <div class="p-prog" id="p-prog"></div>
+        <p class="hint">"Improvisar" toca una progresión y encima notas al azar de la pentatónica. Escuchá cómo nunca suena mal. Después probá vos con las teclas del teclado.</p>
+        <div class="p-tips">
+          <p><b>En la rueda:</b> <span id="p-wheel"></span><br><button class="btn sm" id="p-show">Mostrar en la rueda</button></p>
+          <p><b>Mayor y menor comparten notas:</b> <span id="p-rel"></span></p>
+          <p><b>Truco del piano:</b> las 5 teclas negras forman una pentatónica (Fa# mayor o Re# menor). Si tocás solo teclas negras, siempre suena bien.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="ritmo">
+    <p class="eyebrow">Ritmo</p>
+    <h2 class="sec-h">Pulso, compás y acento</h2>
+    <div class="concepts">
+      <div><b>Pulso</b><p>Es el latido constante de la música, lo que marcás con el pie sin pensar. Siempre a la misma distancia, como un reloj. El tempo dice qué tan rápido va: 80 pulsos por minuto es tranquilo, 120 es rápido.</p></div>
+      <div><b>Compás</b><p>Es un grupo de pulsos que se repite. En 4/4 contás 1-2-3-4, 1-2-3-4. Casi todo el blues, el rock y el pop están en 4/4. El vals está en 3/4: 1-2-3, 1-2-3.</p></div>
+      <div><b>Acento</b><p>Es el pulso que suena más fuerte. En general es el 1, que marca el inicio de cada compás. En el blues y el rock se acentúan el 2 y el 4, que es donde la gente aplaude.</p></div>
+    </div>
+    <p class="step-t">Practicá con la armónica</p>
+    <div class="ctrl-grid">
+      <label class="ctrl"><span>Tempo: <b id="r-bpm">80</b> pulsos por minuto</span><input type="range" id="r-tempo" min="40" max="160" step="1" value="80"></label>
+      <div class="ctrl"><span>Compás</span><div class="seg" role="group" id="r-meter"><button data-v="2" aria-pressed="false">2/4</button><button data-v="3" aria-pressed="false">3/4</button><button data-v="4" aria-pressed="true">4/4</button></div></div>
+      <div class="ctrl"><span>Acento</span><div class="seg" role="group" id="r-acc"><button data-v="1" aria-pressed="true">En el 1</button><button data-v="24" aria-pressed="false">En 2 y 4 (blues)</button></div></div>
+      <div class="ctrl"><span>Ejercicio</span><div class="seg" role="group" id="r-pat"><button data-v="none" aria-pressed="false">Solo pulso</button><button data-v="sa" aria-pressed="true">Soplar / aspirar</button><button data-v="tren" aria-pressed="false">Tren</button></div></div>
+    </div>
+    <p class="hint" id="r-pat-hint"></p>
+    <label class="chk"><input type="checkbox" id="r-harp" checked> Que suene una armónica de ejemplo</label>
+    <div class="beats" id="r-beats"></div>
+    <div class="actions"><button class="btn primary" id="r-start" style="--accent:var(--major)">▶ Empezar</button></div>
+    <p class="hint">Marcá el pulso con el pie y contá en voz alta. Cada soplido o aspiración empieza justo cuando se ilumina el número. El número con borde es el acento: tocalo un poco más fuerte. Empezá lento y subí el tempo de a poco.</p>
+  </section>
+
+  <section class="card" id="blues">
+    <p class="eyebrow">Blues de 12 compases</p>
+    <h2 class="sec-h" id="b-title">Blues en Sol con armónica en Do</h2>
+    <p class="hint" id="b-intro" style="margin-top:0;max-width:72ch"></p>
+    <div class="song" id="song">
+      <p class="eyebrow" style="margin:0">Canción de ejemplo</p>
+      <h3>Down Home Blues</h3>
+      <p class="meta">Del disco Harp Attack! (Alligator Records, 1990), con James Cotton, Junior Wells, Carey Bell y Billy Branch. Compuesta por George Jackson.</p>
+      <p><b>Tonalidad:</b> blues en Sol, tocado con armónica en Do en 2ª posición. Es exactamente el ejemplo de esta grilla: I = Sol (aspirar 1-2-3-4), IV = Do (soplar 1-2-3), V = Re (aspirar 4-5-6).</p>
+      <p class="warn" id="song-warn" hidden></p>
+      <p><b>Cómo está armada:</b> los cuatro cantan una estrofa cada uno y después de cada estrofa toca un solo el mismo que cantó.</p>
+      <div class="tl"><span class="solo">Intro · Cotton</span><i>→</i><span>Estrofa · Cotton</span><span class="solo">Solo · Cotton</span><i>→</i><span>Estrofa · Branch</span><span class="solo">Solo · Branch</span><i>→</i><span>Estrofa · Wells</span><span class="solo">Solo · Wells</span><i>→</i><span>Estrofa · Bell</span><span class="solo">Solo · Bell</span><i>→</i><span class="solo">Solo final · Cotton, Wells y Branch</span></div>
+      <p><b>Cómo practicar con la canción:</b></p>
+      <ol>
+        <li>Escuchala y marcá el pulso con el pie. Es un blues lento: el tempo de práctica arranca en 72.</li>
+        <li>Contá 1-2-3-4 en cada compás y seguí la grilla. En un blues así, cada estrofa y cada solo suelen durar una vuelta de 12 compases: contalos para comprobarlo.</li>
+        <li>Fijate cuándo cambia al IV (Do) en el compás 5 y al V (Re) en el 9. Esos cambios se escuchan aunque no sepas qué acorde es.</li>
+        <li>Con la armónica en Do, tocá −2 (la nota de casa) en los compases del I, 1-2-3 soplado en los del IV, y −4 en el V.</li>
+        <li>Escuchá los compases 11 y 12 de cada vuelta: ahí está el turnaround que prepara la estrofa o el solo siguiente.</li>
+      </ol>
+      <div class="actions" style="margin-top:4px">
+        <button class="btn primary" id="song-setup" style="--accent:var(--major)">Preparar la grilla para esta canción</button>
+        <a class="btn" href="https://www.youtube.com/results?search_query=Harp+Attack+Down+Home+Blues+James+Cotton" target="_blank" rel="noopener">Buscar en YouTube ↗</a>
+      </div>
+    </div>
+    <div class="beats mini" id="b-beats"></div>
+    <div class="b-grid" id="b-grid"></div>
+    <div class="mode-row"><span class="mode-lbl">Compases 11 y 12:</span><div class="seg" role="group" id="b-end"><button data-v="turn" aria-pressed="true">Turnaround (vuelve a empezar)</button><button data-v="end" aria-pressed="false">Ending (termina)</button></div></div>
+    <div class="lick">
+      <p class="step-t" id="b-lick-t"></p>
+      <p class="hint" id="b-lick-why" style="margin:0"></p>
+      <div class="lick-row" id="b-lick"></div>
+      <p class="recipe">Número solo = soplar ese agujero. Número con − = aspirar. La barra | separa el compás 11 del 12.</p>
+    </div>
+    <div class="ctrl-grid" style="margin-top:16px">
+      <label class="ctrl"><span>Tempo: <b id="b-bpm">90</b> pulsos por minuto</span><input type="range" id="b-tempo" min="50" max="140" step="1" value="90"></label>
+      <div class="ctrl"><span>La armónica de ejemplo toca:</span>
+        <label class="chk" style="margin:0"><input type="checkbox" id="b-lick-on" checked> El lick de los compases 11 y 12</label>
+        <label class="chk" style="margin:0"><input type="checkbox" id="b-chords"> Los acordes de cada compás</label>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary" id="b-start" style="--accent:var(--major)">▶ Tocar el blues</button></div>
+    <p class="hint">Cómo practicarlo: primero tocá solo el acorde de la armónica en el pulso 1 de cada compás. Cuando te salga, tocá en los pulsos 2 y 4. Después sumá el lick de los compases 11 y 12. Contar 1-2-3-4 en cada compás te ayuda a no perderte.</p>
+  </section>
+</div>
+
+<script>
+const SH=['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+const FL=['Do','Re♭','Re','Mi♭','Mi','Fa','Sol♭','Sol','La♭','La','Si♭','Si'];
+const USH=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const UFL=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+let latin=true;
+let sel={ring:'M',i:0};
+let showPent=false, pPos=-1;
+const mod=(n,m)=>((n%m)+m)%m;
+
+function rootPc(ring,i){return ring==='M'?mod(i*7,12):mod(i*7+9,12);}
+function isFlat(i){return i>=7;}
+function nn(pc,flat,lat){const t=lat?(flat?FL:SH):(flat?UFL:USH);return t[pc];}
+function chord(ring,i){
+  const r=rootPc(ring,i), iv=ring==='M'?[0,4,7]:[0,3,7], flat=isFlat(i);
+  return {ring,i,root:r,flat,iv,pcs:iv.map(x=>mod(r+x,12))};
+}
+function short(ring,i,lat=latin){
+  const c=chord(ring,i), n=nn(c.root,c.flat,lat);
+  return ring==='M'?n:(lat?n+'m':n+'m');
+}
+function longName(ring,i){
+  const c=chord(ring,i);return nn(c.root,c.flat,true)+(ring==='M'?' mayor':' menor');
+}
+function altLabel(ring,i){
+  if(i!==6) return '';
+  const c=chord(ring,i);return nn(c.root,true,latin)+(ring==='M'?'':'m');
+}
+
+function family(s){
+  const i=s.i, L=mod(i-1,12), R=mod(i+1,12);
+  if(s.ring==='M') return [
+    {ring:'M',i:i,r:'I'},{ring:'M',i:L,r:'IV'},{ring:'M',i:R,r:'V'},
+    {ring:'m',i:i,r:'vi'},{ring:'m',i:L,r:'ii'},{ring:'m',i:R,r:'iii'}];
+  return [
+    {ring:'m',i:i,r:'i'},{ring:'m',i:L,r:'iv'},{ring:'m',i:R,r:'v'},
+    {ring:'M',i:i,r:'III'},{ring:'M',i:L,r:'VI'},{ring:'M',i:R,r:'VII'}];
+}
+function progression(s){
+  const f=family(s), by=r=>f.find(x=>x.r===r);
+  return s.ring==='M'?['I','V','vi','IV'].map(by):['i','VI','III','VII'].map(by);
+}
+
+const W=document.getElementById('wheel'), NS='http://www.w3.org/2000/svg';
+const CX=210,CY=210, R1=200,R2=138,R3=88;
+function arc(r0,r1,a0,a1){
+  const p=(r,a)=>[CX+r*Math.sin(a),CY-r*Math.cos(a)];
+  const [x0,y0]=p(r1,a0),[x1,y1]=p(r1,a1),[x2,y2]=p(r0,a1),[x3,y3]=p(r0,a0);
+  return `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`;
+}
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||W).appendChild(e);return e;}
+const segs={};
+function buildWheel(){
+  W.innerHTML='';
+  el('circle',{cx:CX,cy:CY,r:R1,class:'ring-bg'});
+  for(const ring of ['M','m']){
+    for(let i=0;i<12;i++){
+      const step=Math.PI*2/12, a0=(i-0.5)*step, a1=(i+0.5)*step;
+      const [r0,r1]=ring==='M'?[R2,R1]:[R3,R2];
+      const g=el('g',{});
+      const p=el('path',{d:arc(r0,r1,a0,a1),class:'seg-path '+ring,tabindex:0,role:'button','aria-label':longName(ring,i)},g);
+      const rm=(r0+r1)/2, a=i*step, x=CX+rm*Math.sin(a), y=CY-rm*Math.cos(a);
+      const alt=altLabel(ring,i);
+      const t=el('text',{x,y:alt?y-6:y,class:'lbl '+ring},g);
+      const a2=alt?el('text',{x,y:y+(ring==='M'?11:9),class:'alt'},g):null;
+      const ro=el('text',{x:CX+(ring==='M'?r1-11:r1-9)*Math.sin(a),y:CY-(ring==='M'?r1-11:r1-9)*Math.cos(a),class:'roman'},g);
+      p.addEventListener('click',()=>select(ring,i,true));
+      p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(ring,i,true);}});
+      segs[ring+i]={p,t,a2,ro};
+    }
+  }
+  el('circle',{cx:CX,cy:CY,r:R3-2,fill:'var(--bg)'});
+  el('text',{x:CX,y:CY-8,class:'center-name',id:'cc'});
+  el('text',{x:CX,y:CY+18,class:'center-sub',id:'cs'});
+}
+
+function setAccent(ring){
+  const root=document.documentElement.style;
+  document.getElementById('chord-card').style.setProperty('--accent',ring==='M'?'var(--major)':'var(--minor)');
+  document.querySelectorAll('.prog,.prog-holder').forEach(()=>{});
+}
+
+let playing=null;
+function render(){
+  const fam=family(sel), famKeys=fam.map(f=>f.ring+f.i);
+  for(const ring of ['M','m'])for(let i=0;i<12;i++){
+    const k=ring+i, s=segs[k], isSel=sel.ring===ring&&sel.i===i, isPlay=playing===k;
+    const f=fam.find(x=>x.ring+x.i===k);
+    s.p.classList.toggle('sel',isSel);
+    s.p.classList.toggle('play',isPlay);
+    s.p.classList.toggle('fam',!!f&&!isSel);
+    s.p.classList.toggle('pent',showPent&&ring==='M'&&mod(i-sel.i,12)<5);
+    s.p.setAttribute('aria-pressed',isSel?'true':'false');
+    const on=isSel||isPlay;
+    s.t.textContent=short(ring,i); s.t.classList.toggle('on',on);
+    if(s.a2){s.a2.textContent=altLabel(ring,i);s.a2.classList.toggle('on',on);}
+    s.ro.textContent=f?f.r:''; s.ro.classList.toggle('on',on);
+  }
+  const c=chord(sel.ring,sel.i);
+  document.getElementById('cc').textContent=short(sel.ring,sel.i);
+  document.getElementById('cs').textContent=sel.ring==='M'?'mayor':'menor';
+
+  const card=document.getElementById('chord-card');
+  card.style.setProperty('--accent',sel.ring==='M'?'var(--major)':'var(--minor)');
+  document.getElementById('kind').textContent=sel.ring==='M'?'Acorde mayor':'Acorde menor';
+  document.getElementById('cname').textContent=longName(sel.ring,sel.i);
+  document.getElementById('csym').textContent='Cifrado: '+short(sel.ring,sel.i,false);
+
+  const roles=['Raíz',sel.ring==='M'?'3ª (+4)':'3ª (+3)','5ª (+7)'];
+  document.getElementById('notes').innerHTML=c.pcs.map((pc,j)=>{
+    const name=nn(pc,c.flat,latin), other=nn(pc,!c.flat,latin);
+    const eq=name!==other?` · = ${other}`:'';
+    return `<button class="note ${j===0?'root':''}" data-j="${j}" aria-label="Tocar ${name}"><span class="role">${roles[j]} · ▶</span><span class="nm">${name}</span><span class="num">n.º ${pc+1}${eq}</span></button>`;
+  }).join('');
+  document.querySelectorAll('#notes .note').forEach(b=>b.addEventListener('click',()=>playSemi(c.root+c.iv[+b.dataset.j])));
+
+  const n=c.root+1, plus=c.iv[1];
+  const f1=n+plus, f2=n+7;
+  const w=v=>v>12?`${v} − 12 = <b>${v-12}</b>`:`<b>${v}</b>`;
+  document.getElementById('formula').innerHTML=
+    `<span>raíz = <b>${n}</b></span><span>3ª: ${n} + ${plus} = ${w(f1)}</span><span>5ª: ${n} + 7 = ${w(f2)}</span>`;
+
+  drawKb(c);
+  const sc=document.getElementById('scale');
+  sc.style.setProperty('--accent',sel.ring==='M'?'var(--major)':'var(--minor)');
+  sc.innerHTML=SH.map((_,pc)=>`<div class="${c.pcs.includes(pc)?'hit':''}">${nn(pc,c.flat,latin)}<small>${pc+1}</small></div>`).join('');
+
+  const fl=document.getElementById('fam');
+  const tonic=longName(sel.ring,sel.i);
+  document.getElementById('fam-hint').textContent=`En la tonalidad de ${tonic}, estos seis acordes suenan bien juntos. Están pegados al acorde elegido en la rueda.`;
+  const order=sel.ring==='M'?['I','ii','iii','IV','V','vi']:['i','III','iv','v','VI','VII'];
+  fl.innerHTML=order.map(r=>{const f=fam.find(x=>x.r===r);
+    return `<button class="fam-btn ${f.ring} ${f.ring===sel.ring&&f.i===sel.i?'cur':''}" data-ring="${f.ring}" data-i="${f.i}"><span class="r">${r}</span><span class="n">${short(f.ring,f.i)}</span><span class="k">${f.ring==='M'?'mayor':'menor'}</span></button>`;}).join('');
+  document.getElementById('fam-legend').innerHTML = sel.ring==='M'
+    ? '<span class="chip M"><b>Azul = mayor</b> · mayúscula: I, IV, V</span><span class="chip m"><b>Verde = menor</b> · minúscula: ii, iii, vi</span>'
+    : '<span class="chip M"><b>Azul = mayor</b> · mayúscula: III, VI, VII</span><span class="chip m"><b>Verde = menor</b> · minúscula: i, iv, v</span>';
+  fl.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>select(b.dataset.ring,+b.dataset.i,true)));
+
+  renderProgs();
+  renderPenta();
+  renderHarp();
+  renderBlues();
+}
+
+const PROGS_M=[
+  {r:['I','V','vi','IV'],songs:'Como <b>Let It Be</b> (Beatles), <b>No Woman No Cry</b> (Bob Marley) y <b>With or Without You</b> (U2).'},
+  {r:['I','IV','V','I'],songs:'Como <b>La Bamba</b> y <b>Twist and Shout</b>. La base del rock and roll.'},
+  {r:['vi','IV','I','V'],songs:'Como <b>Zombie</b> (The Cranberries) y <b>Despacito</b>.'},
+  {r:['I','vi','IV','V'],songs:'Como <b>Stand by Me</b> (Ben E. King) y <b>Every Breath You Take</b> (The Police).'},
+  {r:['ii','V','I'],songs:'Como <b>Autumn Leaves</b>. Es la progresión más típica del jazz.'}
+];
+const PROGS_m=[
+  {r:['i','VI','III','VII'],songs:'Como <b>Zombie</b> (The Cranberries), pensada desde el acorde menor.'},
+  {r:['i','iv','v','i'],songs:'Un sonido triste clásico, muy usado en baladas y folk.'},
+  {r:['i','VII','VI','VII'],songs:'Un sonido épico, muy usado en rock y música de películas.'}
+];
+function progList(){
+  if(sel.ring==='M') return PROGS_M;
+  const mp={I:'III',IV:'VI',V:'VII',vi:'i',ii:'iv',iii:'v'};
+  return PROGS_m.concat(PROGS_M.map(p=>({r:p.r.map(x=>mp[x]),songs:p.songs})));
+}
+function renderProgs(){
+  const list=progList(), fam=family(sel);
+  const box=document.getElementById('progs');
+  box.innerHTML=list.map((p,idx)=>{
+    const chs=p.r.map((r,pos)=>{const f=fam.find(x=>x.r===r);
+      return `<span class="pc ${f.ring} ${playIdx===idx&&playPos===pos?'now':''}">${short(f.ring,f.i)}</span>`;}).join('<span class="arrow">→</span>');
+    return `<div class="prog-item"><span class="pat">${p.r.join(' – ')}</span><button class="btn sm" data-idx="${idx}">▶ Tocar</button><div class="chs">${chs}</div><div class="songs">${p.songs}</div></div>`;
+  }).join('');
+  box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>playProg(+b.dataset.idx)));
+}
+function playProg(idx){
+  stopTimers();
+  const list=progList(), fam=family(sel), step=arpMode?1.5:1.0;
+  const seq=list[idx].r.map(r=>fam.find(x=>x.r===r));
+  seq.forEach((p,k)=>{
+    playChord(chord(p.ring,p.i),k*step,arpMode,arpMode?1.0:1.1);
+    timers.push(setTimeout(()=>{playing=p.ring+p.i;playIdx=idx;playPos=k;render();},k*step*1000));
+  });
+  timers.push(setTimeout(()=>{playing=null;playIdx=-1;playPos=-1;render();},seq.length*step*1000));
+}
+
+const PM=[0,2,4,7,9], Pm=[0,3,5,7,10], SM=[0,2,4,5,7,9,11], Sm=[0,2,3,5,7,8,10];
+const pKeys={};
+function pentaInfo(){
+  const c=chord(sel.ring,sel.i), maj=sel.ring==='M';
+  return {maj,root:c.root,flat:c.flat,iv:maj?PM:Pm,full:maj?SM:Sm,out:maj?[3,6]:[1,5],deg:maj?['Raíz','2ª','3ª','5ª','6ª']:['Raíz','3ª','4ª','5ª','7ª']};
+}
+function renderPenta(){
+  const P=pentaInfo(), card=document.getElementById('penta');
+  card.style.setProperty('--accent',P.maj?'var(--major)':'var(--minor)');
+  card.style.setProperty('--accent-soft',P.maj?'var(--major-soft)':'var(--minor-soft)');
+  const N=v=>nn(mod(v,12),P.flat,latin);
+  document.getElementById('p-name').textContent=`Pentatónica de ${nn(P.root,P.flat,true)} ${P.maj?'mayor':'menor'}`;
+  document.getElementById('p-full').innerHTML=P.full.map((x,k)=>`<div class="${P.out.includes(k)?'out':''}"><small>${k+1}ª</small><b>${N(P.root+x)}</b></div>`).join('');
+  const o1=N(P.root+P.full[P.out[0]]), o2=N(P.root+P.full[P.out[1]]);
+  document.getElementById('p-why').textContent=P.maj
+    ? `Se sacan la 4ª (${o1}) y la 7ª (${o2}). La 4ª está a medio tono de la 3ª, y la 7ª a medio tono de la raíz. Esos medios tonos son los que generan choques.`
+    : `Se sacan la 2ª (${o1}) y la 6ª (${o2}). La 2ª está a medio tono de la 3ª, y la 6ª a medio tono de la 5ª. Esos medios tonos son los que generan choques.`;
+  const box=document.getElementById('p-notes');
+  box.innerHTML=P.iv.map((x,j)=>{const pc=mod(P.root+x,12);
+    return `<button class="note ${j===0?'root':''}" data-x="${x}" aria-label="Tocar ${N(pc)}"><span class="role">${P.deg[j]} · ▶</span><span class="nm">${N(pc)}</span><span class="num">n.º ${pc+1}</span></button>`;}).join('');
+  box.querySelectorAll('.note').forEach(b=>b.addEventListener('click',()=>pPlay(P.root+(+b.dataset.x))));
+  const n=P.root+1, w=v=>v>12?`${v} − 12 = <b>${v-12}</b>`:`<b>${v}</b>`;
+  document.getElementById('p-formula').innerHTML=P.iv.map((x,j)=>j===0?`<span>raíz = <b>${n}</b></span>`:`<span>${P.deg[j]}: ${n} + ${x} = ${w(n+x)}</span>`).join('');
+  drawKeys(P);
+  const names=[0,1,2,3,4].map(k=>short('M',mod(sel.i+k,12))).join(' → ');
+  document.getElementById('p-wheel').textContent=P.maj
+    ? `son 5 acordes mayores seguidos, empezando por ${N(P.root)}: ${names}. Cada paso es +7.`
+    : `usa las mismas notas que 5 acordes mayores seguidos: ${names}. Cada paso es +7.`;
+  const relM=nn(rootPc('M',sel.i),isFlat(sel.i),latin), relm=nn(rootPc('m',sel.i),isFlat(sel.i),latin);
+  document.getElementById('p-rel').textContent=P.maj
+    ? `la pentatónica de ${relm} menor tiene las mismas 5 notas, solo que empieza desde ${relm}. La menor es la favorita del blues y el rock.`
+    : `tiene las mismas 5 notas que la pentatónica de ${relM} mayor, solo que empieza desde ${N(P.root)}. Es la favorita del blues y el rock.`;
+  document.getElementById('p-show').textContent=showPent?'Ocultar en la rueda':'Mostrar en la rueda';
+  renderPentaProg();
+}
+function pentaSeq(){const fam=family(sel);return progList()[0].r.map(r=>fam.find(x=>x.r===r));}
+function renderPentaProg(){
+  document.getElementById('p-prog').innerHTML=pentaSeq().map((p,k)=>`<span class="pc ${p.ring} ${pPos===k?'now':''}">${short(p.ring,p.i)}</span>`).join('<span class="arrow">→</span>');
+}
+function drawKeys(P){
+  const kb=document.getElementById('pkb'); kb.innerHTML='';
+  for(const k in pKeys) delete pKeys[k];
+  const whitePcs=[0,2,4,5,7,9,11], ww=30, wh=104;
+  const abs=P.iv.map(x=>P.root+x).concat([P.root+12]);
+  let wi=0; const blacks=[];
+  for(let o=0;o<2;o++)for(let pc=0;pc<12;pc++){
+    const a=o*12+pc;
+    if(whitePcs.includes(pc)){
+      const x=wi*ww, hit=abs.includes(a);
+      const r=el('rect',{x:x+0.5,y:0.5,width:ww-1,height:wh,rx:4,class:'wk'+(hit?' hit':'')},kb);
+      pKeys[a]=r; r.addEventListener('click',()=>pPlay(a));
+      if(hit||pc===0){const t=el('text',{x:x+ww/2,y:wh-8,class:'klbl'+(hit?' hit':'')},kb);t.textContent=hit?nn(pc,P.flat,latin):(latin?'Do':'C');}
+      wi++;
+    } else blacks.push({x:wi*ww-9,a,pc});
+  }
+  blacks.forEach(b=>{const hit=abs.includes(b.a);
+    const r=el('rect',{x:b.x,y:0.5,width:18,height:64,rx:3,class:'bk'+(hit?' hit':'')},kb);
+    pKeys[b.a]=r; r.addEventListener('click',()=>pPlay(b.a));
+    if(hit){const t=el('text',{x:b.x+9,y:56,class:'klbl hit'},kb);t.textContent=nn(b.pc,P.flat,latin);t.setAttribute('font-size','8');}
+  });
+}
+function pFlash(abs){const r=pKeys[abs]; if(!r) return; r.classList.add('flash'); setTimeout(()=>r.classList.remove('flash'),300);}
+function pOff(){return pentaInfo().root>=6?-12:0;}
+function pPlay(abs){const a=ctx(); pFlash(abs); if(!a) return; voice(a,abs+pOff(),a.currentTime,1.2,0.16);}
+function pPlayScale(){
+  stopTimers(); const a=ctx(); if(!a) return;
+  const P=pentaInfo(), up=P.iv.map(x=>P.root+x).concat([P.root+12]);
+  const seq=up.concat(up.slice(0,-1).reverse()), t0=a.currentTime, step=0.32, off=pOff();
+  seq.forEach((v,k)=>{voice(a,v+off,t0+k*step,0.6,0.15); timers.push(setTimeout(()=>pFlash(v),k*step*1000));});
+}
+function pImprovise(){
+  stopTimers(); const a=ctx(); if(!a) return;
+  const P=pentaInfo(), off=pOff(), pool=P.iv.map(x=>P.root+x).concat([P.root+12,P.root+12+P.iv[1]]);
+  const seq=pentaSeq(), dur=2.0, t0=a.currentTime; let last=-1;
+  seq.forEach((p,k)=>{
+    playChord(chord(p.ring,p.i),k*dur,false,1.9);
+    timers.push(setTimeout(()=>{pPos=k;renderPentaProg();},k*dur*1000));
+    for(let m=0;m<4;m++){
+      let v; do{v=pool[Math.floor(Math.random()*pool.length)];}while(v===last); last=v;
+      const tt=k*dur+m*0.5;
+      voice(a,v+off+12,t0+tt,0.45,0.13);
+      timers.push(setTimeout(()=>pFlash(v),tt*1000));
+    }
+  });
+  timers.push(setTimeout(()=>{pPos=-1;renderPentaProg();},seq.length*dur*1000));
+}
+document.getElementById('p-play').addEventListener('click',pPlayScale);
+document.getElementById('p-impro').addEventListener('click',pImprovise);
+document.getElementById('p-show').addEventListener('click',()=>{
+  showPent=!showPent; render();
+  if(showPent){try{document.getElementById('wheel').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}
+});
+
+/* ---------- Armónica ---------- */
+const FLATKEYS=[1,3,5,8,10];
+const KLAT=['Do','Re♭','Re','Mi♭','Mi','Fa','Fa#','Sol','La♭','La','Si♭','Si'], KUS=['C','D♭','D','E♭','E','F','F#','G','A♭','A','B♭','B'];
+const HB=[0,4,7,12,16,19,24,28,31,36], HD=[2,7,11,14,17,21,23,26,29,33];
+let harpKey=0, hMark='chord', bEnd='turn', bBar=-1, bLick=-1, bBeat=-1, rIdx=-1;
+let rBeats=4, rAcc='1', rPat='sa', rHarp=true, bLickOn=true, bChords=false;
+function keyName(pc){return (latin?KLAT:KUS)[mod(pc,12)];}
+function harpBase(){return harpKey>=7?harpKey-12:harpKey;}
+function holeSemi(h){return harpBase()+(h>0?HB[h-1]:HD[-h-1]);}
+function holeName(h){return nn(mod(holeSemi(h),12),FLATKEYS.includes(harpKey),latin);}
+function holeTab(h){return h>0?String(h):'−'+(-h);}
+function majIdx(pc){return mod(pc*7,12);}
+function minIdx(pc){return mod((pc-9)*7,12);}
+function reed(a,semi,t0,dur,vol){
+  const f=261.63*Math.pow(2,semi/12);
+  const o1=a.createOscillator(),o2=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();
+  o1.type='square';o2.type='sawtooth';o1.frequency.value=f;o2.frequency.value=f*1.004;
+  lp.type='lowpass';lp.frequency.value=Math.min(4200,f*4);lp.Q.value=1.5;
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.03);
+  g.gain.setValueAtTime(vol,t0+Math.max(0.04,dur-0.06));g.gain.linearRampToValueAtTime(0.0001,t0+dur);
+  o1.connect(lp);o2.connect(lp);lp.connect(g);g.connect(a.destination);
+  o1.start(t0);o2.start(t0);o1.stop(t0+dur+0.05);o2.stop(t0+dur+0.05);
+}
+function click(a,t,acc,vol=1){
+  const o=a.createOscillator(),g=a.createGain();
+  o.type='sine';o.frequency.value=acc?1600:1000;
+  g.gain.setValueAtTime((acc?0.3:0.14)*vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+0.08);
+}
+function fillHarpSelect(){
+  ['harp-key','harp-key2'].forEach(id=>{const s=document.getElementById(id);
+    s.innerHTML=(latin?KLAT:KUS).map((n,pc)=>`<option value="${pc}" ${pc===harpKey?'selected':''}>${n} (${KUS[pc]})</option>`).join('');});
+}
+let tabPos=-1;
+function parseTab(str){
+  const out=[], bad=[];
+  str.split(/[\s,]+/).filter(Boolean).forEach(tok=>{
+    const bend=/['’]/.test(tok), clean=tok.replace(/['’]/g,'');
+    const m=clean.match(/^([+\-−]?)(\d{1,2})([bBdD↑↓]?)$/);
+    if(!m||+m[2]<1||+m[2]>10){bad.push(tok);return;}
+    const draw=m[1]==='-'||m[1]==='−'||/[dD↓]/.test(m[3]);
+    out.push({h:draw?-(+m[2]):+m[2],bend});
+  });
+  return {out,bad};
+}
+function renderTab(){
+  const {out,bad}=parseTab(document.getElementById('tab-input').value);
+  const box=document.getElementById('tab-out');
+  box.innerHTML=out.map((n,k)=>`<button class="lk ${tabPos===k?'now':''}" data-k="${k}"><b>${holeTab(n.h)}${n.bend?"'":''}</b><small>${holeName(n.h)}</small><small>${n.h>0?'soplar':'aspirar'} ${Math.abs(n.h)}${n.bend?' · bend':''}</small></button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const n=out[+b.dataset.k];const a=ctx();flashCell(n.h);if(a)reed(a,holeSemi(n.h),a.currentTime,0.7,0.07);}));
+  const msgs=[];
+  if(bad.length) msgs.push(`No entendí: ${bad.join(' ')}. Usá números del 1 al 10, con − para aspirar.`);
+  if(out.some(n=>n.bend)) msgs.push('Las notas con bend suenan acá sin bend: en la armónica, al hacer el bend la nota baja un poco.');
+  if(out.length) msgs.push(`Con tu armónica en ${keyName(harpKey)} estas son las notas que tocás.`);
+  document.getElementById('tab-err').textContent=msgs.join(' ');
+}
+function flashCell(h){const c=document.querySelector(`.h-cell[data-h="${h}"]`);if(c){c.classList.add('flash');setTimeout(()=>c.classList.remove('flash'),300);}}
+document.getElementById('tab-input').addEventListener('input',()=>{tabPos=-1;renderTab();});
+document.querySelectorAll('.tab-ex').forEach(b=>b.addEventListener('click',()=>{document.getElementById('tab-input').value=b.dataset.tab;stopTimers();tabPos=-1;renderTab();}));
+document.getElementById('tab-play').addEventListener('click',()=>{
+  stopTimers(); const a=ctx(); if(!a) return;
+  const {out}=parseTab(document.getElementById('tab-input').value), t0=a.currentTime+0.05, step=0.45;
+  out.forEach((n,k)=>{reed(a,holeSemi(n.h),t0+k*step,step*0.9,0.07);
+    timers.push(setTimeout(()=>{tabPos=k;renderTab();flashCell(n.h);},(k*step+0.05)*1000));});
+  timers.push(setTimeout(()=>{tabPos=-1;renderTab();},(out.length*step+0.1)*1000));
+});
+document.getElementById('harp-key2').addEventListener('change',e=>{harpKey=+e.target.value;try{localStorage.setItem('circ-harp',String(harpKey));}catch(err){}render();});
+function markPcs(){
+  if(hMark==='chord'){const c=chord(sel.ring,sel.i);return {pcs:c.pcs,root:c.root};}
+  const P=pentaInfo();return {pcs:P.iv.map(x=>mod(P.root+x,12)),root:P.root};
+}
+function renderHarp(){
+  fillHarpSelect();
+  const card=document.getElementById('harp');
+  card.style.setProperty('--accent',sel.ring==='M'?'var(--major)':'var(--minor)');
+  document.getElementById('h-name').textContent=`Armónica en ${keyName(harpKey)}`;
+  const M=markPcs(), cell=h=>{const pc=mod(holeSemi(h),12), hit=M.pcs.includes(pc);
+    return `<button class="h-cell ${hit?'hit':''} ${hit&&pc===M.root?'root':''}" data-h="${h}" aria-label="${h>0?'Soplar':'Aspirar'} agujero ${Math.abs(h)}: ${holeName(h)}"><small>${holeTab(h)}</small>${holeName(h)}</button>`;};
+  const nums=[1,2,3,4,5,6,7,8,9,10];
+  const g=document.getElementById('harp-grid');
+  g.innerHTML='<span></span>'+nums.map(n=>`<span class="h-num">${n}</span>`).join('')+
+    '<span class="h-lbl">Soplar</span>'+nums.map(n=>cell(n)).join('')+
+    '<span class="h-lbl">Aspirar</span>'+nums.map(n=>cell(-n)).join('');
+  g.querySelectorAll('.h-cell').forEach(b=>b.addEventListener('click',()=>{
+    const a=ctx(); b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'),300);
+    if(a) reed(a,holeSemi(+b.dataset.h),a.currentTime,0.8,0.07);}));
+  const all=new Set(); nums.forEach(n=>{all.add(mod(holeSemi(n),12));all.add(mod(holeSemi(-n),12));});
+  const flat=chord(sel.ring,sel.i).flat, nm=pc=>nn(pc,flat,latin);
+  const missing=M.pcs.filter(pc=>!all.has(pc));
+  let txt;
+  if(hMark==='chord'){
+    txt=`Las casillas marcadas son las notas de ${longName(sel.ring,sel.i)} (${M.pcs.map(nm).join(' – ')}). La de borde es la raíz. `;
+  } else {
+    const P=pentaInfo();txt=`Las casillas marcadas son la pentatónica de ${nn(P.root,P.flat,true)} ${P.maj?'mayor':'menor'}. La de borde es la raíz. `;
+  }
+  txt+=missing.length?`Tu armónica no tiene ${missing.map(nm).join(' ni ')} sin hacer bends (una técnica más avanzada), así que esto no sale completo con esta armónica.`:'Tu armónica tiene todas estas notas.';
+  document.getElementById('h-hint').textContent=txt;
+  renderTab();
+  document.querySelectorAll('#h-mark button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===hMark)));
+  const K=harpKey, pos=[
+    {n:'1ª posición',k:`${keyName(K)} mayor`,d:'Melodías, folk y canciones simples. La nota de casa es soplar (4 soplado).',ring:'M',i:majIdx(K)},
+    {n:'2ª posición (cross harp)',k:`${keyName(K+7)}`,d:'Blues, rock y country. La nota de casa es −2 (aspirar 2). Es un paso a la derecha en la rueda (+7).',ring:'M',i:majIdx(K+7)},
+    {n:'3ª posición',k:`${keyName(K+2)} menor`,d:'Blues menor, sonido más oscuro. La nota de casa es −4 (aspirar 4). Dos pasos a la derecha (+7 +7).',ring:'m',i:minIdx(K+2)}];
+  const pl=document.getElementById('h-pos');
+  pl.innerHTML=pos.map((p,k)=>`<div class="pos"><span class="pn">${p.n}</span><b>${p.k}</b><p>${p.d}</p><button class="btn sm" data-k="${k}">Ver en la rueda</button></div>`).join('');
+  pl.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const p=pos[+b.dataset.k];select(p.ring,p.i,true);
+    try{document.getElementById('wheel').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}));
+}
+document.getElementById('harp-key').addEventListener('change',e=>{harpKey=+e.target.value;try{localStorage.setItem('circ-harp',String(harpKey));}catch(err){}render();});
+document.querySelectorAll('#h-mark button').forEach(b=>b.addEventListener('click',()=>{hMark=b.dataset.v;renderHarp();}));
+
+/* ---------- Reloj compartido (metrónomo y blues) ---------- */
+const T={timer:null,owner:null,spb:0.75,beat:0,next:0,ui:[]};
+function uiAt(t,a,fn){T.ui.push(setTimeout(fn,Math.max(0,(t-a.currentTime)*1000)));}
+function tStop(){
+  clearInterval(T.timer);T.timer=null;T.ui.forEach(clearTimeout);T.ui=[];
+  const o=T.owner;T.owner=null;
+  if(o==='r'){rIdx=-1;renderBeats();document.getElementById('r-start').textContent='▶ Empezar';}
+  if(o==='b'){bBar=-1;bLick=-1;bBeat=-1;renderBlues();document.getElementById('b-start').textContent='▶ Tocar el blues';}
+}
+function tStart(owner,bpm,cb){
+  tStop();const a=ctx();if(!a)return false;
+  T.owner=owner;T.spb=60/bpm;T.beat=0;T.next=a.currentTime+0.12;
+  T.timer=setInterval(()=>{
+    while(T.timer&&T.next<a.currentTime+0.15){
+      const r=cb(T.beat,T.next,a);
+      if(r===false){clearInterval(T.timer);T.timer=null;uiAt(T.next+T.spb*2,a,tStop);return;}
+      T.next+=T.spb;T.beat++;
+    }
+  },25);
+  return true;
+}
+
+/* ---------- Ritmo ---------- */
+const S3={s:'Soplar',h:[1,2,3]}, A3={s:'Aspirar',h:[-1,-2,-3]};
+const PATTERNS={none:[],sa:[S3,A3],tren:[A3,A3,S3,S3]};
+const PAT_HINT={
+  none:'Solo el clic. Contá en voz alta y marcá cada pulso con el pie.',
+  sa:'Soplás en un pulso y aspirás en el siguiente, con los agujeros 1, 2 y 3 juntos. Así aprendés a respirar a tiempo.',
+  tren:'El ritmo del tren, clásico de la armónica: aspirar, aspirar, soplar, soplar. Probalo con el acento en 2 y 4.'};
+function isAcc(idx){return rAcc==='1'?idx===0:idx%2===1;}
+function renderBeats(){
+  const pat=PATTERNS[rPat];
+  document.getElementById('r-beats').innerHTML=Array.from({length:rBeats},(_,idx)=>{
+    const st=pat.length?pat[idx%pat.length]:null;
+    return `<div class="beat ${isAcc(idx)?'acc':''} ${rIdx===idx?'now':''}"><span class="bn">${idx+1}</span><span class="bs">${st?st.s:'Pulso'}</span><small>${st?st.h.map(holeTab).join(' '):(isAcc(idx)?'fuerte':'suave')}</small></div>`;}).join('');
+  document.getElementById('r-pat-hint').textContent=PAT_HINT[rPat];
+}
+function bindSeg(id,fn){document.querySelectorAll('#'+id+' button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));fn(b.dataset.v);}));}
+bindSeg('r-meter',v=>{rBeats=+v;renderBeats();});
+bindSeg('r-acc',v=>{rAcc=v;renderBeats();});
+bindSeg('r-pat',v=>{rPat=v;renderBeats();});
+document.getElementById('r-harp').addEventListener('change',e=>{rHarp=e.target.checked;});
+document.getElementById('r-tempo').addEventListener('input',e=>{const v=+e.target.value;document.getElementById('r-bpm').textContent=v;if(T.owner==='r')T.spb=60/v;});
+document.getElementById('r-start').addEventListener('click',()=>{
+  if(T.owner==='r'){tStop();return;}
+  const ok=tStart('r',+document.getElementById('r-tempo').value,(beat,t,a)=>{
+    const idx=beat%rBeats, acc=isAcc(idx), pat=PATTERNS[rPat];
+    click(a,t,acc);
+    if(rHarp&&pat.length){pat[idx%pat.length].h.forEach(h=>reed(a,holeSemi(h),t,T.spb*0.75,acc?0.05:0.03));}
+    uiAt(t,a,()=>{rIdx=idx;renderBeats();});
+  });
+  if(ok) document.getElementById('r-start').textContent='■ Parar';
+});
+
+/* ---------- Blues de 12 compases ---------- */
+const BHOLES={I:{h:[-1,-2,-3,-4],s:'aspirar 1-2-3-4'},IV:{h:[1,2,3],s:'soplar 1-2-3'},V:{h:[-4,-5,-6],s:'aspirar 4-5-6'}};
+const LICKS={
+  turn:[{h:-4,bar:0,at:0,len:1},{h:4,bar:0,at:1,len:1},{h:-3,bar:0,at:2,len:1},{h:-2,bar:0,at:3,len:1},{h:-1,bar:1,at:0,len:3}],
+  end:[{h:-2,bar:0,at:0,len:1},{h:-3,bar:0,at:1,len:1},{h:4,bar:0,at:2,len:1},{h:-4,bar:0,at:3,len:1},{h:4,bar:1,at:0,len:1},{h:-3,bar:1,at:1,len:1},{h:-2,bar:1,at:2,len:2}]};
+function bForm(){return ['I','I','I','I','IV','IV','I','I','V','IV','I',bEnd==='turn'?'V':'I'];}
+function bRoot(r){const K=harpKey;return r==='I'?mod(K+7,12):r==='IV'?K:mod(K+2,12);}
+function renderBlues(){
+  const K=harpKey, I=keyName(K+7), IV=keyName(K), V=keyName(K+2);
+  document.getElementById('b-title').textContent=`Blues en ${I} con armónica en ${IV}`;
+  document.getElementById('b-intro').textContent=`Es la forma más famosa del blues: 12 compases de 4 pulsos, con solo 3 acordes. Con tu armónica en ${IV} tocás en 2ª posición (cross harp), así que el blues está en ${I}. Los acordes son I = ${I}, IV = ${IV} y V = ${V}. Abajo de cada compás tenés qué agujeros tocar.`;
+  const sw=document.getElementById('song-warn');
+  sw.hidden=harpKey===0;
+  sw.textContent=`Ojo: elegiste una armónica en ${IV}. Para tocar junto a esta canción necesitás una en ${keyName(0)}. Tocá "Preparar la grilla" y se cambia sola.`;
+  document.getElementById('b-beats').innerHTML=[0,1,2,3].map(i=>`<div class="beat ${i%2===1?'acc':''} ${bBeat===i?'now':''}"><span class="bn">${i+1}</span></div>`).join('');
+  document.getElementById('b-grid').innerHTML=bForm().map((r,k)=>`<div class="bar ${r} ${k>=10?'tail':''} ${bBar===k?'now':''}"><small>Compás ${k+1}</small><span class="rn">${r}</span><b>${keyName(bRoot(r))}</b><span class="hh">${BHOLES[r].h.map(holeTab).join(' ')}</span><span class="hs">${BHOLES[r].s}</span></div>`).join('');
+  document.querySelectorAll('#b-end button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===bEnd)));
+  document.getElementById('b-lick-t').textContent=bEnd==='turn'?'Turnaround: el giro para volver a empezar':'Ending: el final del blues';
+  document.getElementById('b-lick-why').textContent=bEnd==='turn'
+    ? `Los compases 11 y 12 preparan la vuelta al compás 1. Terminan en el V (${V}), que genera tensión y "pide" volver al I (${I}). Este lick baja nota por nota y termina en −1, que es ${holeName(-1)}.`
+    : `En vez de volver a empezar, el blues termina. El compás 12 se queda en el I (${I}) y el lick sube, baja y termina en −2, la nota de casa (${holeName(-2)}), sostenida.`;
+  let prevBar=0;
+  document.getElementById('b-lick').innerHTML=LICKS[bEnd].map((n,k)=>{
+    const sep=n.bar!==prevBar?'<span class="lk-sep">|</span>':''; prevBar=n.bar;
+    return sep+`<span class="lk ${bLick===k?'now':''}"><b>${holeTab(n.h)}</b><small>${holeName(n.h)}</small><small>${n.h>0?'soplar':'aspirar'} ${Math.abs(n.h)}${n.len>1?' · larga':''}</small></span>`;}).join('');
+}
+bindSeg('b-end',v=>{bEnd=v;renderBlues();});
+document.getElementById('song-setup').addEventListener('click',()=>{
+  tStop(); harpKey=0; bEnd='turn';
+  try{localStorage.setItem('circ-harp','0');}catch(e){}
+  const tp=document.getElementById('b-tempo'); tp.value=72; document.getElementById('b-bpm').textContent='72';
+  select('M',majIdx(7),false);
+  try{document.getElementById('b-grid').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+});
+document.getElementById('b-lick-on').addEventListener('change',e=>{bLickOn=e.target.checked;});
+document.getElementById('b-chords').addEventListener('change',e=>{bChords=e.target.checked;});
+document.getElementById('b-tempo').addEventListener('input',e=>{const v=+e.target.value;document.getElementById('b-bpm').textContent=v;if(T.owner==='b')T.spb=60/v;});
+document.getElementById('b-start').addEventListener('click',()=>{
+  if(T.owner==='b'){tStop();return;}
+  const ok=tStart('b',+document.getElementById('b-tempo').value,(beat,t,a)=>{
+    if(bEnd==='end'&&beat>=48){
+      const r=bRoot('I'); voice(a,r-24,t,2,0.14); [0,4,7].forEach(x=>voice(a,r-12+x,t,2,0.08));
+      return false;
+    }
+    const bar=Math.floor(beat/4)%12, idx=beat%4, rn=bForm()[bar], r=bRoot(rn);
+    voice(a,r-24+[0,4,7,9][idx],t,T.spb*0.9,0.13);
+    click(a,t,idx%2===1,0.5);
+    if(idx%2===1)[0,4,7].forEach(x=>voice(a,r-12+x,t,0.18,0.07));
+    const inLick=bLickOn&&bar>=10;
+    if(bChords&&!inLick&&idx%2===0)BHOLES[rn].h.forEach(h=>reed(a,holeSemi(h),t,T.spb*1.6,0.03));
+    uiAt(t,a,()=>{bBar=bar;bBeat=idx;if(bar<10)bLick=-1;renderBlues();});
+    if(inLick)LICKS[bEnd].forEach((n,k)=>{if(n.bar===bar-10&&n.at===idx){
+      reed(a,holeSemi(n.h),t,T.spb*n.len*0.95,0.06);uiAt(t,a,()=>{bLick=k;renderBlues();});}});
+  });
+  if(ok) document.getElementById('b-start').textContent='■ Parar';
+});
+
+function drawKb(c){
+  const kb=document.getElementById('kb'); kb.innerHTML='';
+  for(const k in kbKeys) delete kbKeys[k];
+  const card=document.getElementById('chord-card');
+  const whitePcs=[0,2,4,5,7,9,11], ww=30, wh=104;
+  const abs=c.iv.map(x=>c.root+x);
+  let wi=0;
+  const blacks=[];
+  for(let o=0;o<2;o++)for(let pc=0;pc<12;pc++){
+    const a=o*12+pc;
+    if(whitePcs.includes(pc)){
+      const x=wi*ww, hit=abs.includes(a);
+      const r=el('rect',{x:x+0.5,y:0.5,width:ww-1,height:wh,rx:4,class:'wk'+(hit?' hit':'')},kb);
+      kbKeys[a]=r; r.addEventListener('click',()=>playSemi(a));
+      if(hit||pc===0){const t=el('text',{x:x+ww/2,y:wh-8,class:'klbl'+(hit?' hit':'')},kb);t.textContent=hit?nn(pc,c.flat,latin):(latin?'Do':'C');}
+      wi++;
+    } else blacks.push({x:wi*ww-9,a,pc});
+  }
+  blacks.forEach(b=>{const hit=abs.includes(b.a);
+    const r=el('rect',{x:b.x,y:0.5,width:18,height:64,rx:3,class:'bk'+(hit?' hit':'')},kb);
+    kbKeys[b.a]=r; r.addEventListener('click',()=>playSemi(b.a));
+    if(hit){const t=el('text',{x:b.x+9,y:56,class:'klbl hit'},kb);t.textContent=nn(b.pc,c.flat,latin).replace('♭','♭');t.setAttribute('font-size','8');}
+  });
+}
+
+let actx=null;
+function ctx(){if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}if(actx.state==='suspended')actx.resume();return actx;}
+function voice(a,semi,t0,dur,vol){
+  const o=a.createOscillator(),g=a.createGain(),f=a.createBiquadFilter();
+  o.type='triangle';o.frequency.value=261.63*Math.pow(2,semi/12);
+  f.type='lowpass';f.frequency.value=2400;
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0008,t0+dur);
+  o.connect(f);f.connect(g);g.connect(a.destination);o.start(t0);o.stop(t0+dur+0.05);
+}
+function playChord(c,when=0,arp=false,dur=1.6){
+  const a=ctx(); if(!a) return;
+  const base=c.root>=6?c.root-12:c.root;
+  const t=a.currentTime+when;
+  voice(a,base-12,t,dur,0.09);
+  c.iv.forEach((x,j)=>voice(a,base+x,t+(arp?j*0.38:j*0.025),arp?dur+0.6:dur,0.11));
+}
+const kbKeys={};
+function flashKey(abs){const r=kbKeys[abs]; if(!r) return; r.classList.add('flash'); setTimeout(()=>r.classList.remove('flash'),350);}
+function playSemi(abs){
+  const a=ctx(); flashKey(abs); if(!a) return;
+  const c=chord(sel.ring,sel.i), off=c.root>=6?-12:0;
+  voice(a,abs+off,a.currentTime,1.4,0.16);
+}
+let timers=[];
+let playIdx=-1,playPos=-1;
+function stopTimers(){timers.forEach(clearTimeout);timers=[];playing=null;playIdx=-1;playPos=-1;pPos=-1;tabPos=-1;}
+function select(ring,i,sound){
+  stopTimers(); sel={ring,i}; render();
+  if(sound) playChord(chord(ring,i),0,arpMode);
+}
+document.getElementById('play').addEventListener('click',()=>playChord(chord(sel.ring,sel.i)));
+document.getElementById('arp').addEventListener('click',()=>playChord(chord(sel.ring,sel.i),0,true));
+
+function setNames(l){latin=l;
+  document.getElementById('nm-lat').setAttribute('aria-pressed',l);
+  document.getElementById('nm-us').setAttribute('aria-pressed',!l);
+  buildWheel();render();
+  try{localStorage.setItem('circ-names',l?'lat':'us');}catch(e){}
+}
+document.getElementById('nm-lat').addEventListener('click',()=>setNames(true));
+document.getElementById('nm-us').addEventListener('click',()=>setNames(false));
+try{if(localStorage.getItem('circ-names')==='us')latin=false;}catch(e){}
+document.getElementById('nm-lat').setAttribute('aria-pressed',latin);
+document.getElementById('nm-us').setAttribute('aria-pressed',!latin);
+let arpMode=false;
+function setMode(a){
+  arpMode=a;
+  document.querySelectorAll('.mode-seg button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.mode==='arp')===a)));
+  try{localStorage.setItem('circ-mode',a?'arp':'junto');}catch(e){}
+}
+document.querySelectorAll('.mode-seg button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode==='arp')));
+try{if(localStorage.getItem('circ-mode')==='arp')setMode(true);}catch(e){}
+try{const hk=localStorage.getItem('circ-harp');if(hk!==null&&hk!=='')harpKey=mod(+hk,12)||0;}catch(e){}
+renderBeats();
+buildWheel();render();
+</script>
+</body>
+</html>
